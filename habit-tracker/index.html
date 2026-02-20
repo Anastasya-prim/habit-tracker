@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Трекер привычек</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 { font-size: 1.5rem; margin: 0 0 20px; }
+    .add-row { display: flex; gap: 8px; margin-bottom: 20px; flex-shrink: 0; }
+    input[type="text"] { flex: 1; padding: 10px 12px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; }
+    input[type="text"]:focus { outline: none; border-color: #333; }
+    button { padding: 10px 16px; cursor: pointer; border-radius: 8px; border: none; font-size: 1rem; }
+    #btn-add { background: #333; color: #fff; }
+    #btn-add:hover { background: #555; }
+    ul { list-style: none; padding: 0; margin: 0; flex: 1; overflow: auto; }
+    li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eee; }
+    li.done .habit-text { text-decoration: line-through; color: #888; }
+    .habit-text { flex: 1; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .habit-text input { cursor: pointer; width: 18px; height: 18px; }
+    .btn-delete { color: #c00; background: #fff; border: 1px solid #c00; padding: 6px 12px; font-size: 13px; }
+    .btn-delete:hover { background: #fee; }
+    .empty { color: #888; padding: 20px 0; }
+    .filter-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-row .filter-btns { display: flex; gap: 4px; }
+    .filter-row button.filter-btn { padding: 6px 12px; font-size: 14px; background: #eee; color: #333; }
+    .filter-row button.filter-btn.active { background: #333; color: #fff; }
+    .counter { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Трекер привычек</h1>
+  <div class="add-row">
+    <input type="text" id="habit-input" placeholder="Новая привычка" />
+    <button type="button" id="btn-add">Добавить</button>
+  </div>
+  <div class="filter-row">
+    <div class="filter-btns">
+      <button type="button" class="filter-btn active" data-filter="all">Все</button>
+      <button type="button" class="filter-btn" data-filter="active">Активные</button>
+      <button type="button" class="filter-btn" data-filter="done">Выполненные</button>
+    </div>
+    <span class="counter" id="counter"></span>
+  </div>
+  <ul id="habit-list"></ul>
+
+  <script>
+    const STORAGE_KEY = 'habit-tracker-v1';
+    const habitInput = document.getElementById('habit-input');
+    const btnAdd = document.getElementById('btn-add');
+    const listEl = document.getElementById('habit-list');
+    const counterEl = document.getElementById('counter');
+
+    let habits = loadHabits();
+    let filter = 'all';
+
+    function loadHabits() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (_) {}
+      return [];
+    }
+
+    function saveHabits() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+    }
+
+    function addHabit() {
+      const text = habitInput.value.trim();
+      if (!text) return;
+      habits.push({ id: Date.now(), text, done: false });
+      habitInput.value = '';
+      saveHabits();
+      render();
+      habitInput.focus();
+    }
+
+    function removeHabit(id) {
+      if (!confirm('Удалить эту привычку?')) return;
+      habits = habits.filter(h => h.id !== id);
+      saveHabits();
+      render();
+    }
+
+    function toggleHabit(id) {
+      const h = habits.find(x => x.id === id);
+      if (h) h.done = !h.done;
+      saveHabits();
+      render();
+    }
+
+    function getFilteredHabits() {
+      if (filter === 'active') return habits.filter(h => !h.done);
+      if (filter === 'done') return habits.filter(h => h.done);
+      return habits;
+    }
+
+    function updateCounter() {
+      const done = habits.filter(h => h.done).length;
+      const total = habits.length;
+      counterEl.textContent = total ? `Выполнено: ${done} из ${total}` : '';
+    }
+
+    function render() {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      updateCounter();
+
+      const filtered = getFilteredHabits();
+      listEl.innerHTML = '';
+      if (habits.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'empty';
+        p.textContent = 'Пока нет привычек. Добавьте первую выше.';
+        listEl.appendChild(p);
+        return;
+      }
+      if (filtered.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'empty';
+        p.textContent = filter === 'active' ? 'Нет активных привычек.' : 'Нет выполненных привычек.';
+        listEl.appendChild(p);
+        return;
+      }
+      filtered.forEach(h => {
+        const li = document.createElement('li');
+        if (h.done) li.classList.add('done');
+        const label = document.createElement('label');
+        label.className = 'habit-text';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = h.done;
+        checkbox.addEventListener('change', () => toggleHabit(h.id));
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(h.text));
+        li.appendChild(label);
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-delete';
+        delBtn.textContent = 'Удалить';
+        delBtn.addEventListener('click', () => removeHabit(h.id));
+        li.appendChild(delBtn);
+        listEl.appendChild(li);
+      });
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        filter = btn.dataset.filter;
+        render();
+      });
+    });
+    btnAdd.addEventListener('click', addHabit);
+    habitInput.addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
+    render();
+  </script>
+</body>
+</html>

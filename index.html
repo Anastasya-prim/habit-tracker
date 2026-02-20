@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Трекер привычек</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 1.25rem; }
+    .add-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    input[type="text"] { flex: 1; padding: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eee; }
+    li.done .habit-text { text-decoration: line-through; color: #888; }
+    .habit-text { flex: 1; }
+    .btn-delete { color: #c00; background: none; border: 1px solid #c00; padding: 4px 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Трекер привычек</h1>
+  <div class="add-row">
+    <input type="text" id="habit-input" placeholder="Новая привычка" />
+    <button type="button" id="btn-add">Добавить</button>
+  </div>
+  <ul id="habit-list"></ul>
+
+  <script>
+    const habitInput = document.getElementById('habit-input');
+    const btnAdd = document.getElementById('btn-add');
+    const listEl = document.getElementById('habit-list');
+
+    let habits = [];
+
+    function addHabit() {
+      const text = habitInput.value.trim();
+      if (!text) return;
+      habits.push({ id: Date.now(), text, done: false });
+      habitInput.value = '';
+      render();
+    }
+
+    function removeHabit(id) {
+      habits = habits.filter(h => h.id !== id);
+      render();
+    }
+
+    function toggleHabit(id) {
+      const h = habits.find(x => x.id === id);
+      if (h) h.done = !h.done;
+      render();
+    }
+
+    function render() {
+      listEl.innerHTML = '';
+      habits.forEach(h => {
+        const li = document.createElement('li');
+        if (h.done) li.classList.add('done');
+        const label = document.createElement('label');
+        label.className = 'habit-text';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = h.done;
+        checkbox.addEventListener('change', () => toggleHabit(h.id));
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(' ' + h.text));
+        li.appendChild(label);
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-delete';
+        delBtn.textContent = 'Удалить';
+        delBtn.addEventListener('click', () => removeHabit(h.id));
+        li.appendChild(delBtn);
+        listEl.appendChild(li);
+      });
+    }
+
+    btnAdd.addEventListener('click', addHabit);
+    habitInput.addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
+  </script>
+</body>
+</html>
